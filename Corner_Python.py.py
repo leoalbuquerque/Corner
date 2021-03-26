@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[222]:
+# # **Imports**
+
+# In[514]:
 
 
 #Import libraries
@@ -12,7 +14,9 @@ import seaborn as sns
 import sklearn
 
 
-# In[223]:
+# # **Loding data**
+
+# In[515]:
 
 
 #Load datasets
@@ -22,7 +26,9 @@ shoppers = pd.read_csv('C:/Users/leona/OneDrive/Documents/DS Project - Corner/da
 storebranch = pd.read_csv('C:/Users/leona/OneDrive/Documents/DS Project - Corner/datascience-test-master-2/data/storebranch.csv', sep=',')
 
 
-# In[224]:
+# # **Data Preparation**
+
+# In[516]:
 
 
 #Analysing some metrics thru descriptive statistics
@@ -30,7 +36,7 @@ shoppers.describe()
 orders.describe()
 
 
-# In[225]:
+# In[517]:
 
 
 #Checking null values
@@ -61,7 +67,7 @@ shoppers.agg({'found_rate': ['mean','median'],
 #shoppers.describe()
 
 
-# In[226]:
+# In[518]:
 
 
 #I've decided to impute the median of each metric instead of missing values
@@ -72,14 +78,14 @@ shoppers[['found_rate', 'accepted_rate', 'rating']] = imputer.transform(
     shoppers[['found_rate', 'accepted_rate', 'rating']].values)
 
 
-# In[227]:
+# In[519]:
 
 
 #Testing a previous null case and checking that now it is input as the median values
 shoppers[shoppers["shopper_id"] == "db39866e62b95bb04ebb1e470f2d1347"]
 
 
-# In[228]:
+# In[520]:
 
 
 orders["on_demand"].value_counts()
@@ -87,7 +93,7 @@ orders.count()
 order_products.count()
 
 
-# In[229]:
+# In[521]:
 
 
 #Creating a procedure for splitting the "buy_unit" field into the two new fields: "quantity_UN" and "quantity_KG"
@@ -98,7 +104,7 @@ order_products.loc[order_products['buy_unit']!="KG", 'quantity_KG'] = 0
 order_products
 
 
-# In[230]:
+# In[522]:
 
 
 #It's necessary to aggregate the 'order_products' dataset by 'order_id'
@@ -107,7 +113,7 @@ order_products_agg = order_products_agg.reset_index(level=0)
 order_products_agg
 
 
-# In[231]:
+# In[523]:
 
 
 #Merging the datasets together, applying inner (using the 'order_products_agg' dataset)
@@ -116,7 +122,7 @@ corner = pd.merge(corner, shoppers, how="inner", on=["shopper_id", "shopper_id"]
 corner = pd.merge(corner, storebranch, how="inner", on=["store_branch_id", "store_branch_id"])
 
 
-# In[232]:
+# In[524]:
 
 
 #Analysing the merge results
@@ -129,7 +135,14 @@ print(corner.shape)
 #print(corner.count())
 
 
-# In[233]:
+# In[525]:
+
+
+#Distribution curve across our label
+sns.distplot(corner['total_minutes'])
+
+
+# In[526]:
 
 
 #Analysing the distribution of the label field
@@ -140,7 +153,7 @@ corner.corr()
 sns.heatmap(corner.corr(), annot=True)
 
 
-# In[234]:
+# In[527]:
 
 
 #Renaming the columns name
@@ -148,35 +161,42 @@ corner = corner.rename(columns={'lat_x': 'lat_order', 'lng_x': 'lng_order'})
 corner = corner.rename(columns={'lat_y': 'lat_store', 'lng_y': 'lng_store'})
 
 
-# In[235]:
+# In[528]:
 
 
 #Converting to integer values: "True" to 1 / "False" to 0
 corner['on_demand'] = corner["on_demand"].apply(lambda x : 1 if (x==True) else 0)
 
 
-# In[236]:
+# In[582]:
 
 
-#Converting categorical field into numeric by LabelEncoder library
+#Converting categorical field to numeric by LabelEncoder library
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 le = LabelEncoder()
 corner['seniority'] = le.fit_transform(corner['seniority'])
-corner['promised_time_'] = le.fit_transform(corner['promised_time'])
-
-corner
+#corner['promised_time_'] = le.fit_transform(corner['promised_time'])
 
 
-# In[237]:
+# In[587]:
+
+
+#Converting datetime object field to integer
+corner['promised_time'] = pd.to_datetime(corner['promised_time'])
+corner['promised_time'] = pd.to_datetime(corner['promised_time']).astype(np.int64)
+corner.info() #OK
+
+
+# In[588]:
 
 
 #Moving the rows that we want to predict (the goal of this activity) to a new dataset
 predict = corner[corner['total_minutes'].isnull()]
-predict = predict[['lat_order','lng_order','on_demand','quantity_UN','quantity_KG','seniority','found_rate',
-      'picking_speed','accepted_rate','rating','lat_store','lng_store','promised_time_']]
+predict = predict[['order_id','lat_order','lng_order','on_demand','quantity_UN','quantity_KG','seniority','found_rate',
+      'picking_speed','accepted_rate','rating','lat_store','lng_store','promised_time']]
 
 
-# In[238]:
+# In[589]:
 
 
 #Removing predict dataset
@@ -185,43 +205,97 @@ Y = corner.dropna(subset=['total_minutes'], inplace=True)
 
 #Picking up the useful fields for the feature dataset
 X = corner[['lat_order','lng_order','on_demand','quantity_UN','quantity_KG','seniority','found_rate',
-      'picking_speed','accepted_rate','rating','lat_store','lng_store','promised_time_']]
+      'picking_speed','accepted_rate','rating','lat_store','lng_store','promised_time']]
 
 #Label dataset
 Y = corner[['total_minutes']]
 
 
-# In[245]:
+# In[614]:
 
 
 print(X.shape)
 print(Y.shape)
 print(predict.shape)
-print(corner.shape)
+#print(corner.shape)
 
 
-# In[244]:
+# # **Feature Scalling**
+
+# In[ ]:
 
 
 #Transforming the features to a Standard scale
 from sklearn.preprocessing import StandardScaler
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
-predict = scaler.fit_transform(predict)
+predict = scaler.fit_transform(predict[['lat_order','lng_order','on_demand','quantity_UN','quantity_KG','seniority','found_rate',
+      'picking_speed','accepted_rate','rating','lat_store','lng_store','promised_time']])
 
 
-# In[246]:
+# # **Dataset Split**
+
+# In[615]:
 
 
 #Splitting my dataset into train/test dataset
+#Training dataset: 70%
+#Testing dataset: 30%
 from sklearn.model_selection import train_test_split
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3, random_state=42)
 
 
-# In[248]:
+# # **Model Training**
+
+# In[616]:
 
 
+#Creating the LinearRegression model for the training dataset
 from sklearn.linear_model import LinearRegression
 lm = LinearRegression()
 lm.fit(X_train, Y_train)
+
+
+# # **Evaluate the Model**
+
+# In[617]:
+
+
+#Appling the testing dataset to be predicted
+predictions = lm.predict(X_test)
+
+
+# In[618]:
+
+
+#Comparing the results predicted with the correct label
+plt.scatter(Y_test, predictions)
+
+
+# In[619]:
+
+
+#Analysing the residuals in a graphically way
+sns.distplot((Y_test-predictions))
+
+
+# # **Performance Metrics**
+
+# In[620]:
+
+
+#Analysing the Regression Evaluation Metrics - Model Accuracy
+from sklearn import metrics
+print("MAE:",metrics.mean_absolute_error(Y_test, predictions)) #Mean Absolute Error (MAE)
+print("MSE:",metrics.mean_squared_error(Y_test, predictions)) #Mean Squared Error (MSE)
+print("RMSE",np.sqrt(metrics.mean_squared_error(Y_test, predictions))) #Root Mean Squared Error (RMSE)
+
+
+# # **Applying the predictions dataset**
+
+# In[623]:
+
+
+#Applying the predictions dataset (purpose of this activity)
+activity_predictions = lm.predict(predict)
 
